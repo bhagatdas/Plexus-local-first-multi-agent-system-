@@ -1,0 +1,28 @@
+# Personal data — never publish
+memory/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Claude Code internal state
+.claude/
+
+# Editors / IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# OS / build noise
+*.log
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

@@ -1,0 +1,8 @@
+ollama:
+  base_url: http://localhost:11434
+  model: gpt-oss:120b-cloud
+  temperature: 0.2
+
+agent:
+  max_revisions: 3   # max verifier → planner loops
+  max_steps: 15      # graph recursion limit

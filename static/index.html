@@ -1,0 +1,1241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plexus — Local-first Multi-Agent System</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg-primary:#f8fafc;--bg-secondary:#ffffff;--bg-tertiary:#f1f5f9;
+  --bg-chat:#f8fafc;--bg-input:#f1f5f9;--bg-hover:#e2e8f0;
+  --text-primary:#0f172a;--text-secondary:#475569;--text-muted:#94a3b8;
+  --accent:#6366f1;--accent-glow:#6366f140;--accent-light:#818cf8;
+  --border:#e2e8f0;--success:#10b981;--warning:#f59e0b;--error:#ef4444;
+  --user-bubble:linear-gradient(135deg,#6366f1,#8b5cf6);
+  --user-bubble-solid:#6366f1;
+  --agent-bubble:#ffffff;
+  --router-color:#8b5cf6;--planner-color:#06b6d4;--executor-color:#f59e0b;
+  --verifier-color:#10b981;--tools-color:#a78bfa;
+  --shadow-sm:0 1px 2px rgba(15,23,42,.04),0 1px 3px rgba(15,23,42,.06);
+  --shadow-md:0 4px 12px rgba(15,23,42,.06),0 2px 4px rgba(15,23,42,.04);
+  --shadow-lg:0 10px 30px rgba(15,23,42,.08),0 4px 12px rgba(15,23,42,.05);
+  --sidebar-width:280px;
+}
+body{font-family:'Inter',sans-serif;background:radial-gradient(1200px 600px at 20% -10%,rgba(99,102,241,.06),transparent 60%),radial-gradient(900px 500px at 100% 100%,rgba(236,72,153,.05),transparent 55%),var(--bg-primary);color:var(--text-primary);height:100vh;overflow:hidden;display:flex;letter-spacing:-0.005em}
+
+/* --- Sidebar --- */
+.sidebar{width:var(--sidebar-width);background:var(--bg-secondary);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:transform .3s;backdrop-filter:saturate(140%)}
+.sidebar-header{padding:20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px}
+.sidebar-header h2{font-size:15px;font-weight:700;color:var(--text-primary);letter-spacing:-0.01em}
+.logo{width:36px;height:36px;background:linear-gradient(135deg,var(--accent),#ec4899,#06b6d4);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;box-shadow:0 4px 12px rgba(99,102,241,.3);position:relative;overflow:hidden}
+.logo::after{content:"";position:absolute;inset:0;background:linear-gradient(135deg,transparent 40%,rgba(255,255,255,.2) 50%,transparent 60%);animation:shine 4s ease-in-out infinite}
+@keyframes shine{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}
+.new-chat-btn{width:100%;margin:12px 16px;width:calc(100% - 32px);padding:11px 16px;background:linear-gradient(135deg,var(--accent),#8b5cf6);color:#fff;border:none;border-radius:11px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600;transition:all .2s;box-shadow:0 2px 8px rgba(99,102,241,.25)}
+.new-chat-btn:hover{transform:translateY(-1px);box-shadow:0 6px 18px rgba(99,102,241,.4)}
+.conversations-list{flex:1;overflow-y:auto;padding:8px}
+.conv-item{padding:10px 14px;border-radius:10px;cursor:pointer;font-size:13px;color:var(--text-secondary);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:all .15s;border:1px solid transparent}
+.conv-item:hover{background:var(--bg-tertiary);color:var(--text-primary)}
+.conv-item.active{background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(139,92,246,.06));color:var(--text-primary);border-color:rgba(99,102,241,.2)}
+.conv-item .conv-date{font-size:10px;color:var(--text-muted);display:block;margin-top:3px;font-weight:400}
+.sidebar-footer{padding:16px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px}
+.sidebar-footer button{padding:8px 12px;background:transparent;color:var(--text-secondary);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-family:inherit;font-size:12px;transition:all .15s;text-align:left}
+.sidebar-footer button:hover{background:var(--bg-hover);color:var(--text-primary)}
+.memory-badge{display:inline-block;background:var(--accent);color:#fff;font-size:10px;padding:1px 6px;border-radius:10px;margin-left:6px}
+
+/* --- Main --- */
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.chat-header{padding:14px 24px;border-bottom:1px solid var(--border);background:var(--bg-secondary);display:flex;align-items:center;justify-content:space-between;backdrop-filter:saturate(140%) blur(8px)}
+.chat-header h3{font-size:15px;font-weight:600;letter-spacing:-0.01em;color:var(--text-primary)}
+.model-dropdown{font-size:11px;color:var(--accent-light);background:var(--accent-glow);padding:4px 10px;border-radius:20px;border:1px solid var(--accent);outline:none;font-family:inherit;cursor:pointer;appearance:none;padding-right:24px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23818cf8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center}
+.model-dropdown option{background:var(--bg-secondary);color:var(--text-primary)}
+
+/* --- Messages --- */
+.messages-container{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:16px;scroll-behavior:smooth}
+.message{display:flex;gap:12px;max-width:85%;animation:fadeIn .3s ease}
+.message.user{align-self:flex-end;flex-direction:row-reverse}
+.message.assistant{align-self:flex-start}
+.avatar{width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;box-shadow:var(--shadow-sm)}
+.message.user .avatar{background:linear-gradient(135deg,var(--accent),#ec4899);box-shadow:0 3px 10px rgba(99,102,241,.25)}
+.message.assistant .avatar{background:linear-gradient(135deg,#0ea5e9,#06b6d4);box-shadow:0 3px 10px rgba(14,165,233,.25)}
+.bubble{padding:14px 18px;border-radius:18px;font-size:14px;line-height:1.65;word-wrap:break-word;max-width:100%;box-shadow:var(--shadow-sm)}
+.message.user .bubble{background:var(--user-bubble);color:#fff;border-bottom-right-radius:4px;box-shadow:0 4px 14px rgba(99,102,241,.25),0 2px 4px rgba(99,102,241,.18)}
+.message.assistant .bubble{background:var(--agent-bubble);color:var(--text-primary);border-bottom-left-radius:4px;border:1px solid var(--border);box-shadow:var(--shadow-md)}
+.bubble code{background:rgba(99,102,241,.08);color:#4338ca;padding:2px 7px;border-radius:5px;font-size:12.5px;font-family:'Fira Code',ui-monospace,monospace;border:1px solid rgba(99,102,241,.12)}
+.bubble pre{background:var(--bg-input);border:1px solid var(--border);padding:12px 14px;border-radius:10px;overflow-x:auto;margin:10px 0;font-size:12.5px;line-height:1.55}
+.bubble pre code{background:transparent;border:none;padding:0;color:var(--text-primary)}
+.bubble strong{color:var(--text-primary);font-weight:600}
+.message.user .bubble strong{color:#fff}
+.bubble em{color:var(--text-secondary);font-style:italic}
+.bubble a{color:var(--accent);text-decoration:underline;text-decoration-color:rgba(99,102,241,.4);text-underline-offset:2px;word-break:break-all;transition:color .15s}
+.bubble a:hover{color:#4338ca;text-decoration-color:var(--accent)}
+.bubble ul,.bubble ol{margin:8px 0 8px 22px;padding:0}
+.bubble li{margin:4px 0;line-height:1.6}
+.bubble h1,.bubble h2,.bubble h3{margin:14px 0 6px;font-weight:600;color:var(--text-primary);line-height:1.3}
+.bubble h1{font-size:17px}.bubble h2{font-size:15px}.bubble h3{font-size:14px;color:var(--accent)}
+.bubble hr{border:none;border-top:1px solid var(--border);margin:12px 0}
+.bubble blockquote{border-left:3px solid var(--accent);background:rgba(99,102,241,.04);padding:8px 12px;margin:8px 0;color:var(--text-secondary);border-radius:0 8px 8px 0}
+/* Markdown tables — make them render properly */
+.bubble table{border-collapse:collapse;margin:10px 0;width:100%;max-width:100%;font-size:13px;border-radius:10px;overflow:hidden;box-shadow:var(--shadow-sm)}
+.bubble thead{background:linear-gradient(135deg,rgba(99,102,241,.08),rgba(236,72,153,.05))}
+.bubble th{padding:10px 12px;font-weight:600;color:var(--text-primary);text-align:left;border-bottom:1px solid var(--border);font-size:12px;text-transform:uppercase;letter-spacing:.3px}
+.bubble td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--text-secondary);vertical-align:top}
+.bubble tbody tr:last-child td{border-bottom:none}
+.bubble tbody tr:hover{background:var(--bg-tertiary)}
+.bubble td a{font-size:12.5px}
+
+/* Agent steps (expandable) */
+.agent-steps{margin-top:8px}
+.agent-step{padding:8px 12px;margin:4px 0;background:var(--bg-input);border-radius:8px;border-left:3px solid var(--accent);font-size:12px;color:var(--text-secondary);cursor:pointer;transition:all .2s}
+.agent-step:hover{background:var(--bg-hover)}
+.agent-step .step-header{display:flex;align-items:center;gap:8px}
+.agent-step .step-agent{font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:.5px}
+.agent-step .step-agent.planner{color:#06b6d4}
+.agent-step .step-agent.executor{color:#f59e0b}
+.agent-step .step-agent.verifier{color:#10b981}
+.agent-step .step-agent.replanner{color:#a78bfa}
+.agent-step .step-agent.synthesizer{color:#3b82f6}
+.agent-step .step-body{display:none;margin-top:8px;white-space:pre-wrap;font-size:12px;line-height:1.5;color:var(--text-secondary)}
+.agent-step.expanded .step-body{display:block}
+.agent-step .chevron{transition:transform .2s;font-size:10px}
+.agent-step.expanded .chevron{transform:rotate(90deg)}
+
+/* Typing indicator */
+.typing{display:flex;gap:4px;padding:12px 16px}
+.typing span{width:8px;height:8px;background:var(--accent-light);border-radius:50%;animation:bounce 1.4s infinite}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
+
+/* "Agent working…" banner shown while the run is active */
+.thinking-banner{display:flex;align-items:center;gap:10px;padding:8px 12px;background:linear-gradient(90deg,var(--accent-glow),transparent);border-radius:8px;margin-bottom:8px;font-size:11px;font-weight:500;color:var(--accent)}
+.thinking-banner .spinner{width:14px;height:14px;border:2px solid var(--accent-glow);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0}
+.thinking-banner .label{flex:1}
+.thinking-banner .elapsed{color:var(--text-muted);font-family:'Fira Code',monospace;font-weight:400}
+.thinking-banner .bar{height:2px;background:var(--bg-hover);border-radius:1px;overflow:hidden;margin-top:6px}
+.thinking-banner-wrap{margin-bottom:8px}
+.thinking-banner-wrap .bar::before{content:"";display:block;width:30%;height:100%;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:slide 1.6s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Agent trace — stack of cards that fill in as the workflow runs */
+.agent-trace{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+.trace-card{background:linear-gradient(180deg,var(--bg-input),var(--bg-secondary));border:1px solid var(--border);border-left:3px solid var(--text-muted);border-radius:10px;padding:10px 14px;font-size:12px;transition:all .25s ease;box-shadow:var(--shadow-sm)}
+.trace-card:hover{box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.trace-card.running{border-left-color:var(--accent);box-shadow:0 0 0 1px var(--accent-glow),var(--shadow-md)}
+.trace-card.done.router{border-left-color:var(--router-color)}
+.trace-card.done.planner{border-left-color:var(--planner-color)}
+.trace-card.done.executor{border-left-color:var(--executor-color)}
+.trace-card.done.verifier{border-left-color:var(--verifier-color)}
+.trace-card.done.replanner{border-left-color:var(--tools-color)}
+.trace-card.done.tools{border-left-color:var(--tools-color)}
+.trace-card.done.assistant,.trace-card.done.start{border-left-color:var(--success)}
+.trace-header{display:flex;align-items:center;gap:8px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--text-muted);margin-bottom:6px}
+.trace-header .agent-name{color:var(--text-primary)}
+.trace-header .agent-name.router{color:var(--router-color)}
+.trace-header .agent-name.planner{color:var(--planner-color)}
+.trace-header .agent-name.executor{color:var(--executor-color)}
+.trace-header .agent-name.verifier{color:var(--verifier-color)}
+.trace-header .agent-name.replanner{color:var(--tools-color)}
+.trace-header .agent-name.tools{color:var(--tools-color)}
+.trace-header .status-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 1.4s infinite}
+.trace-card.done .status-dot{background:var(--success);animation:none}
+.trace-header .trace-status{margin-left:auto;font-weight:400;color:var(--text-muted);text-transform:none;letter-spacing:0}
+.trace-body{font-size:12px;line-height:1.5;color:var(--text-secondary);white-space:pre-wrap;max-height:320px;overflow-y:auto;font-family:'Fira Code',monospace}
+.trace-body:empty{display:none}
+.trace-card.running .trace-body::after{content:"▌";color:var(--accent);animation:blink 1s steps(2) infinite;margin-left:1px}
+.trace-progress{height:2px;background:var(--bg-hover);border-radius:1px;overflow:hidden;margin-top:6px;display:none}
+.trace-card.running .trace-progress{display:block}
+.trace-progress::before{content:"";display:block;width:30%;height:100%;background:linear-gradient(90deg,transparent,var(--accent),transparent);animation:slide 1.4s ease-in-out infinite}
+@keyframes blink{0%,50%{opacity:1}51%,100%{opacity:0}}
+@keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(400%)}}
+
+/* Stats bar */
+.stats-bar{font-size:11px;color:var(--text-muted);padding:4px 16px;display:flex;gap:16px;align-items:center}
+.stats-bar .stat{display:flex;align-items:center;gap:4px}
+.workflow-btn{background:var(--bg-input);border:1px solid var(--border);color:var(--text-secondary);padding:4px 10px;border-radius:8px;cursor:pointer;font-size:10px;font-family:inherit;transition:all .15s;display:inline-flex;align-items:center;gap:4px}
+.workflow-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);transform:translateY(-1px)}
+.message.assistant.workflow-active .bubble{box-shadow:0 0 0 2px var(--accent-glow);border-color:var(--accent)}
+
+/* Human-in-the-loop prompt */
+.hitl-card{align-self:stretch;max-width:100%;background:#f59e0b10;border:1px solid var(--warning);border-radius:12px;padding:14px 16px;margin:8px 0;display:flex;flex-direction:column;gap:10px}
+.hitl-header{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:var(--warning)}
+.hitl-question{font-size:14px;color:var(--text-primary);line-height:1.5;white-space:pre-wrap}
+.hitl-input-row{display:flex;gap:8px}
+.hitl-input{flex:1;background:var(--bg-secondary);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-family:inherit;font-size:13px;color:var(--text-primary);outline:none}
+.hitl-input:focus{border-color:var(--warning)}
+.hitl-submit{padding:8px 16px;background:var(--warning);color:#fff;border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:500}
+.hitl-submit:hover{background:#d97706}
+.hitl-submit:disabled{opacity:.5;cursor:not-allowed}
+.hitl-card.answered{border-color:var(--success);background:#10b98110}
+.hitl-card.answered .hitl-header{color:var(--success)}
+
+/* --- Input --- */
+.input-area{padding:16px 24px 24px;background:linear-gradient(180deg,transparent,var(--bg-secondary) 30%);border-top:1px solid var(--border)}
+.input-wrapper{display:flex;align-items:flex-end;gap:12px;background:var(--bg-secondary);border:1.5px solid var(--border);border-radius:18px;padding:10px 10px 10px 18px;transition:all .25s;max-width:900px;margin:0 auto;box-shadow:var(--shadow-sm)}
+.input-wrapper:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-glow),var(--shadow-md)}
+.input-wrapper textarea{flex:1;background:transparent;border:none;color:var(--text-primary);font-family:inherit;font-size:14.5px;resize:none;outline:none;min-height:24px;max-height:150px;line-height:1.55;padding:4px 0}
+.input-wrapper textarea::placeholder{color:var(--text-muted)}
+.send-btn{width:40px;height:40px;background:linear-gradient(135deg,var(--accent),#8b5cf6);border:none;border-radius:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0;box-shadow:0 2px 8px rgba(99,102,241,.3)}
+.send-btn:hover{transform:translateY(-1px) scale(1.04);box-shadow:0 4px 16px rgba(99,102,241,.4)}
+.send-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:none}
+.send-btn svg{width:18px;height:18px;fill:#fff}
+
+/* Welcome */
+.welcome{text-align:center;padding:80px 20px 40px;max-width:640px;margin:0 auto}
+.welcome h1{font-size:38px;font-weight:800;background:linear-gradient(135deg,var(--accent),#ec4899,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:14px;letter-spacing:-0.03em;line-height:1.1}
+.welcome p{color:var(--text-secondary);font-size:14.5px;line-height:1.7;margin-bottom:32px}
+.suggestions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.suggestion{padding:16px 18px;background:var(--bg-secondary);border:1px solid var(--border);border-radius:14px;cursor:pointer;text-align:left;font-size:13px;color:var(--text-secondary);transition:all .25s ease;box-shadow:var(--shadow-sm);position:relative;overflow:hidden}
+.suggestion::before{content:"";position:absolute;inset:0;background:linear-gradient(135deg,rgba(99,102,241,.06),rgba(236,72,153,.04));opacity:0;transition:opacity .25s}
+.suggestion:hover{border-color:var(--accent);color:var(--text-primary);transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.suggestion:hover::before{opacity:1}
+.suggestion>*{position:relative}
+.suggestion .s-icon{font-size:22px;margin-bottom:8px;display:block}
+
+/* State Inspector (right drawer) */
+.state-toggle{font-size:11px;color:var(--text-secondary);background:var(--bg-input);padding:6px 12px;border-radius:8px;border:1px solid var(--border);cursor:pointer;font-family:inherit;margin-left:8px;display:flex;align-items:center;gap:6px}
+.state-toggle:hover{background:var(--bg-hover);color:var(--text-primary)}
+.state-toggle .state-dot{width:6px;height:6px;border-radius:50%;background:var(--text-muted)}
+.state-toggle.live .state-dot{background:var(--success);animation:pulse 1.5s infinite}
+.state-panel{position:fixed;right:0;top:0;bottom:0;width:380px;background:var(--bg-secondary);border-left:1px solid var(--border);transform:translateX(100%);transition:transform .25s ease;z-index:40;display:flex;flex-direction:column}
+.state-panel.open{transform:translateX(0)}
+.state-panel-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.state-panel-header h3{font-size:14px;font-weight:600}
+.state-panel-header .close-btn{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px}
+.state-panel-body{flex:1;overflow-y:auto;padding:16px 20px;font-size:12px}
+.timeline{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;margin-bottom:12px;border-bottom:1px solid var(--border)}
+.timeline::-webkit-scrollbar{height:4px}
+.tl-chip{flex-shrink:0;padding:6px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:11px;color:var(--text-secondary);display:flex;flex-direction:column;align-items:center;gap:2px;min-width:60px;transition:all .15s}
+.tl-chip:hover{background:var(--bg-hover);color:var(--text-primary)}
+.tl-chip.active{border-color:var(--accent);background:var(--accent-glow);color:var(--text-primary)}
+.tl-chip.live{border-color:var(--success)}
+.tl-chip .tl-node{font-weight:600;text-transform:capitalize;font-size:11px}
+.tl-chip .tl-ts{font-size:9px;color:var(--text-muted);font-family:'Fira Code',monospace}
+.tl-chip .tl-node.planner{color:#06b6d4}
+.tl-chip .tl-node.executor{color:#f59e0b}
+.tl-chip .tl-node.verifier{color:#10b981}
+.tl-chip .tl-node.replanner{color:#a78bfa}
+.tl-chip .tl-node.synthesizer{color:#3b82f6}
+.tl-controls{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;font-size:11px;color:var(--text-muted)}
+.tl-live-btn{background:var(--bg-input);border:1px solid var(--border);color:var(--text-secondary);padding:3px 8px;border-radius:6px;cursor:pointer;font-size:10px;font-family:inherit}
+.tl-live-btn.on{background:var(--success);border-color:var(--success);color:#fff}
+.field-changed{position:relative}
+.field-changed::before{content:"●";position:absolute;left:-12px;color:var(--accent);font-size:10px}
+.state-section{margin-bottom:20px}
+.state-section h4{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;color:var(--text-muted);margin-bottom:8px;display:flex;align-items:center;justify-content:space-between}
+.state-section h4 .count{background:var(--bg-input);color:var(--text-secondary);padding:2px 8px;border-radius:10px;font-size:10px;font-weight:500;text-transform:none;letter-spacing:0}
+.plan-list{list-style:none}
+.plan-step{padding:8px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;color:var(--text-secondary);font-size:12px;line-height:1.4;display:flex;gap:8px;align-items:flex-start}
+.plan-step .idx{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;background:var(--bg-hover);color:var(--text-muted);border-radius:50%;font-size:10px;font-weight:600;flex-shrink:0}
+.plan-step.done{border-color:var(--success);background:#10b98110}
+.plan-step.done .idx{background:var(--success);color:#fff}
+.plan-step.current{border-color:var(--accent);background:var(--accent-glow)}
+.plan-step.current .idx{background:var(--accent);color:#fff}
+.past-step{background:var(--bg-input);border-radius:8px;padding:8px 10px;margin-bottom:6px;border-left:3px solid var(--accent)}
+.past-step .ps-step{font-weight:600;color:var(--text-primary);font-size:11px;margin-bottom:4px}
+.past-step .ps-result{color:var(--text-secondary);font-size:11px;line-height:1.4;white-space:pre-wrap;max-height:120px;overflow-y:auto;font-family:'Fira Code',monospace}
+.verif-pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:500}
+.verif-pill.approved{background:#10b98120;color:var(--success);border:1px solid var(--success)}
+.verif-pill.revise{background:#f59e0b20;color:var(--warning);border:1px solid var(--warning)}
+.verif-pill.pending{background:var(--bg-input);color:var(--text-muted);border:1px solid var(--border)}
+.verif-detail{margin-top:6px;padding:8px 10px;background:var(--bg-input);border-radius:6px;font-size:11px;color:var(--text-secondary);white-space:pre-wrap;line-height:1.4}
+.tokens-grid{display:grid;grid-template-columns:1fr auto;gap:4px 12px;font-size:11px}
+.tokens-grid .tk-agent{color:var(--text-secondary)}
+.tokens-grid .tk-val{color:var(--text-primary);font-family:'Fira Code',monospace;font-weight:500;text-align:right}
+.state-empty{color:var(--text-muted);font-size:11px;font-style:italic;padding:6px 0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Workflow Graph (SVG) */
+.workflow-graph-section{background:linear-gradient(180deg,rgba(99,102,241,.04),transparent);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:18px}
+.workflow-graph{position:relative}
+.workflow-graph svg{display:block;width:100%;height:auto;max-height:240px}
+.wg-node rect{transition:all .3s ease}
+.wg-node text{transition:fill .3s ease}
+.wg-node.visited rect{fill:rgba(99,102,241,.08);stroke:var(--accent);stroke-width:2}
+.wg-node.visited text{fill:var(--text-primary)}
+.wg-node.visited[data-node="router"] rect{stroke:var(--router-color);fill:rgba(139,92,246,.1)}
+.wg-node.visited[data-node="planner"] rect{stroke:var(--planner-color);fill:rgba(6,182,212,.1)}
+.wg-node.visited[data-node="executor"] rect{stroke:var(--executor-color);fill:rgba(245,158,11,.1)}
+.wg-node.visited[data-node="verifier"] rect{stroke:var(--verifier-color);fill:rgba(16,185,129,.1)}
+.wg-node.active rect{filter:drop-shadow(0 0 6px rgba(99,102,241,.4));stroke-width:2.5}
+.wg-node.active rect{animation:wgPulse 1.6s ease-in-out infinite}
+@keyframes wgPulse{0%,100%{opacity:1}50%{opacity:.7}}
+.wg-edge{transition:stroke .3s ease}
+.wg-edge.active{stroke:var(--accent);stroke-width:2.5}
+.wg-legend{display:flex;align-items:center;gap:6px;margin-top:8px;font-size:10px;color:var(--text-muted);flex-wrap:wrap}
+.wg-leg-dot{display:inline-block;width:9px;height:9px;border-radius:3px;background:#fff;border:1.5px solid #cbd5e1;margin-left:6px}
+.wg-leg-dot.visited{background:rgba(99,102,241,.15);border-color:var(--accent)}
+.wg-leg-dot.active{background:rgba(99,102,241,.3);border-color:var(--accent);box-shadow:0 0 6px var(--accent-glow)}
+
+/* Memory modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:#0005;z-index:100;align-items:center;justify-content:center}
+.modal-overlay.active{display:flex}
+.modal{background:var(--bg-secondary);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto}
+.modal h3{font-size:16px;margin-bottom:16px}
+.modal .fact{padding:8px 12px;background:var(--bg-input);border-radius:8px;margin-bottom:6px;font-size:13px;color:var(--text-secondary)}
+.modal .close-btn{float:right;background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:18px}
+
+/* Animations */
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-8px)}}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#3a3a5c}
+
+/* Mobile */
+@media(max-width:768px){
+  .sidebar{position:fixed;left:0;top:0;bottom:0;z-index:50;transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .suggestions{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- Sidebar -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div class="logo">🤖</div>
+    <div>
+      <h2 style="line-height:1.1">Plexus</h2>
+      <div style="font-size:10px;color:var(--text-muted);margin-top:2px">local-first multi-agent</div>
+    </div>
+  </div>
+  <button class="new-chat-btn" onclick="newChat()">+ New Chat</button>
+  <div class="conversations-list" id="convList"></div>
+  <div class="sidebar-footer">
+    <button onclick="showMemory()">🧠 Long-Term Memory <span class="memory-badge" id="memCount">0</span></button>
+    <button onclick="clearMemory()">🗑️ Clear Memory</button>
+  </div>
+</aside>
+
+<!-- Main Chat -->
+<main class="main">
+  <div class="chat-header">
+    <h3 id="chatTitle">New Conversation</h3>
+    <div style="display:flex;align-items:center;gap:8px">
+      <select class="model-dropdown" id="modelSelect">
+        <option value="">loading models...</option>
+      </select>
+      <button class="state-toggle" id="stateToggle" onclick="toggleStatePanel()">
+        <span class="state-dot"></span>
+        <span>State</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="messages-container" id="messages">
+    <div class="welcome" id="welcome">
+      <h1>Plexus</h1>
+      <p>Plan-and-Execute architecture with ReAct agents, real tools, verification, and self-correction. Ask me anything — I'll break it down, solve it step by step, and verify the answer.</p>
+      <div class="suggestions">
+        <div class="suggestion" onclick="sendSuggestion(this)"><span class="s-icon">🔢</span>What is 15% of 847 plus the square root of 144?</div>
+        <div class="suggestion" onclick="sendSuggestion(this)"><span class="s-icon">🛒</span>A laptop costs $1299, 20% off + 5% student discount. Final price?</div>
+        <div class="suggestion" onclick="sendSuggestion(this)"><span class="s-icon">🌡️</span>What is the current temperature in Jaipur, India?</div>
+        <div class="suggestion" onclick="sendSuggestion(this)"><span class="s-icon">📊</span>If I invest $1000 at 5% interest for 3 years, how much will I have?</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <div class="input-wrapper">
+      <textarea id="userInput" placeholder="Ask me anything..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+        <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+      </button>
+    </div>
+  </div>
+</main>
+
+<!-- State Inspector Panel -->
+<aside class="state-panel" id="statePanel">
+  <div class="state-panel-header">
+    <h3>🔬 LangGraph State</h3>
+    <button class="close-btn" onclick="toggleStatePanel()">✕</button>
+  </div>
+  <div class="state-panel-body" id="stateBody">
+    <div class="state-section workflow-graph-section">
+      <h4>Workflow Graph</h4>
+      <div class="workflow-graph" id="workflowGraph">
+        <svg viewBox="0 0 320 240" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#cbd5e1"/>
+            </marker>
+            <marker id="arrow-active" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#6366f1"/>
+            </marker>
+          </defs>
+          <!-- edges (drawn first so they sit under nodes) -->
+          <line class="wg-edge" data-edge="router-planner" x1="160" y1="42" x2="160" y2="76" stroke="#cbd5e1" stroke-width="2" marker-end="url(#arrow)"/>
+          <line class="wg-edge" data-edge="router-end" x1="200" y1="28" x2="296" y2="28" stroke="#cbd5e1" stroke-width="2" marker-end="url(#arrow)" stroke-dasharray="4 3"/>
+          <line class="wg-edge" data-edge="planner-executor" x1="160" y1="108" x2="160" y2="138" stroke="#cbd5e1" stroke-width="2" marker-end="url(#arrow)"/>
+          <line class="wg-edge" data-edge="executor-verifier" x1="160" y1="170" x2="160" y2="200" stroke="#cbd5e1" stroke-width="2" marker-end="url(#arrow)"/>
+          <!-- executor self-loop -->
+          <path class="wg-edge" data-edge="executor-self" d="M 215 154 q 30 0 30 -16 q 0 -16 -30 -16" fill="none" stroke="#cbd5e1" stroke-width="2" marker-end="url(#arrow)"/>
+          <!-- verifier revise loop back to planner -->
+          <path class="wg-edge" data-edge="verifier-planner" d="M 105 216 q -60 0 -60 -60 q 0 -64 60 -64 q 18 0 22 6" fill="none" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arrow)"/>
+          <!-- end markers -->
+          <text x="304" y="32" font-size="9" fill="#94a3b8" font-weight="600">END</text>
+          <text x="160" y="236" font-size="9" fill="#94a3b8" font-weight="600" text-anchor="middle">END (APPROVED)</text>
+          <text x="58" y="146" font-size="9" fill="#f59e0b" font-weight="600" text-anchor="middle">REVISE</text>
+          <text x="252" y="142" font-size="9" fill="#94a3b8" font-weight="600">step+1</text>
+          <!-- nodes -->
+          <g class="wg-node" data-node="router">
+            <rect x="125" y="10" width="70" height="32" rx="9" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+            <text x="160" y="30" font-size="11" fill="#475569" text-anchor="middle" font-weight="600">router</text>
+          </g>
+          <g class="wg-node" data-node="planner">
+            <rect x="125" y="76" width="70" height="32" rx="9" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+            <text x="160" y="96" font-size="11" fill="#475569" text-anchor="middle" font-weight="600">planner</text>
+          </g>
+          <g class="wg-node" data-node="executor">
+            <rect x="125" y="138" width="70" height="32" rx="9" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+            <text x="160" y="158" font-size="11" fill="#475569" text-anchor="middle" font-weight="600">executor</text>
+          </g>
+          <g class="wg-node" data-node="verifier">
+            <rect x="125" y="200" width="70" height="32" rx="9" fill="#fff" stroke="#cbd5e1" stroke-width="1.5"/>
+            <text x="160" y="220" font-size="11" fill="#475569" text-anchor="middle" font-weight="600">verifier</text>
+          </g>
+        </svg>
+        <div class="wg-legend">
+          <span class="wg-leg-dot visited"></span><span>visited</span>
+          <span class="wg-leg-dot active"></span><span>active</span>
+          <span class="wg-leg-dot"></span><span>idle</span>
+        </div>
+      </div>
+    </div>
+    <div class="tl-controls">
+      <span id="tlLabel">Snapshot 0 / 0</span>
+      <button class="tl-live-btn on" id="tlLiveBtn" onclick="toggleLive()">● LIVE</button>
+    </div>
+    <div class="timeline" id="timeline"><div class="state-empty" style="padding:8px">Run a query to see snapshots.</div></div>
+    <div class="state-section">
+      <h4>Plan <span class="count" id="planCount">0</span></h4>
+      <ol class="plan-list" id="planList"><div class="state-empty">No plan yet — ask a question to begin.</div></ol>
+    </div>
+    <div class="state-section">
+      <h4>Past Steps <span class="count" id="pastCount">0</span></h4>
+      <div id="pastSteps"><div class="state-empty">Nothing executed yet.</div></div>
+    </div>
+    <div class="state-section">
+      <h4>Verification</h4>
+      <div id="verifBox"><span class="verif-pill pending"><span class="state-dot"></span> pending</span></div>
+    </div>
+    <div class="state-section">
+      <h4>Revisions</h4>
+      <div id="revisionCount" style="font-size:13px;color:var(--text-secondary)">0</div>
+    </div>
+    <div class="state-section">
+      <h4>Token Usage</h4>
+      <div class="tokens-grid" id="tokensGrid"><div class="state-empty">No tokens tracked yet.</div></div>
+    </div>
+  </div>
+</aside>
+
+<!-- Memory Modal -->
+<div class="modal-overlay" id="memoryModal">
+  <div class="modal">
+    <button class="close-btn" onclick="closeMemory()">✕</button>
+    <h3>🧠 Long-Term Memory</h3>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Facts remembered across conversations:</p>
+    <div id="memoryFacts"></div>
+  </div>
+</div>
+
+<script>
+let conversationId = null;
+let isStreaming = false;
+let stateHistory = [];   // snapshots for the CURRENT in-flight run
+let stateLive = true;    // follow the latest, or pinned to a historical index
+let stateViewIdx = -1;   // which snapshot is currently displayed
+const messageWorkflows = new Map();  // turn_id -> snapshots[] (one per message turn)
+let activeTurnId = null;
+
+// --- Init ---
+document.addEventListener('DOMContentLoaded', () => {
+  loadConversations();
+  loadMemoryCount();
+  loadModels();
+  document.getElementById('userInput').focus();
+});
+
+function loadModels() {
+  fetch('/api/models')
+    .then(r => r.json())
+    .then(data => {
+      const select = document.getElementById('modelSelect');
+      select.innerHTML = '';
+      if (data.models && data.models.length > 0) {
+        data.models.forEach(model => {
+          const opt = document.createElement('option');
+          opt.value = model;
+          opt.textContent = model;
+          select.appendChild(opt);
+        });
+        // Default to gpt-oss if available, else first
+        const hasGptOss = data.models.find(m => m.includes('gpt-oss'));
+        if (hasGptOss) select.value = hasGptOss;
+      } else {
+        select.innerHTML = '<option value="">No models found</option>';
+      }
+    })
+    .catch(err => {
+      document.getElementById('modelSelect').innerHTML = '<option value="">Error loading models</option>';
+    });
+}
+
+// --- Auto-resize textarea ---
+function autoResize(el) {
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, 150) + 'px';
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+}
+
+// --- Send message ---
+function sendMessage() {
+  const input = document.getElementById('userInput');
+  const text = input.value.trim();
+  if (!text || isStreaming) return;
+
+  document.getElementById('welcome')?.remove();
+  addMessage('user', text);
+  input.value = '';
+  input.style.height = 'auto';
+  // New turn: fresh state history, fresh ID
+  activeTurnId = 't_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+  resetStateHistory();
+  setStreaming(true);
+
+  // Show typing indicator
+  const typingEl = addTypingIndicator();
+
+  // SSE stream
+  const selectedModel = document.getElementById('modelSelect').value;
+  const body = JSON.stringify({ message: text, conversation_id: conversationId || '', model: selectedModel });
+  streamFrom('/api/chat', body, typingEl);
+}
+
+// Shared SSE consumer used for both /api/chat and /api/resume.
+function streamFrom(url, body, typingEl) {
+  fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
+    .then(response => {
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let steps = [];
+      let pausedForInput = false;
+
+      function processChunk() {
+        reader.read().then(({ done, value }) => {
+          if (done) { finalize(); return; }
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.type === 'conversation_id') {
+                conversationId = data.id;
+              } else if (data.type === 'token') {
+                appendLiveToken(typingEl, data.agent, data.content);
+              } else if (data.type === 'agent_step') {
+                steps.push(data);
+                // Finalize this agent's card; the next agent will start its own card.
+                clearLiveStream(typingEl, data.agent, data.content);
+              } else if (data.type === 'state') {
+                renderState(data);
+              } else if (data.type === 'human_input_needed') {
+                if (typingEl && typingEl.parentNode) typingEl.remove();
+                pausedForInput = true;
+                addHumanInputPrompt(data.question);
+              } else if (data.type === 'final_answer') {
+                if (typingEl && typingEl.parentNode) typingEl.remove();
+                if (activeTurnId && stateHistory.length > 0) {
+                  messageWorkflows.set(activeTurnId, stateHistory.slice());
+                }
+                addAssistantMessage(data.content, steps, data.elapsed, data.diagnostics, activeTurnId);
+                steps = [];
+              } else if (data.type === 'error') {
+                if (typingEl && typingEl.parentNode) typingEl.remove();
+                addMessage('assistant', '❌ ' + data.content);
+              } else if (data.type === 'done') {
+                finalize();
+              }
+            } catch (e) {}
+          }
+          processChunk();
+        });
+      }
+
+      function finalize() {
+        if (typingEl && typingEl.parentNode) typingEl.remove();
+        // If we're waiting on human input, keep streaming "off" but leave
+        // the conversation open. The submit handler will re-enable it.
+        if (!pausedForInput) {
+          setStreaming(false);
+        } else {
+          isStreaming = false;
+          document.getElementById('sendBtn').disabled = false;
+          document.getElementById('stateToggle').classList.remove('live');
+        }
+        loadConversations();
+        loadMemoryCount();
+      }
+
+      processChunk();
+    })
+    .catch(err => {
+      if (typingEl && typingEl.parentNode) typingEl.remove();
+      addMessage('assistant', '❌ Connection error: ' + err.message);
+      setStreaming(false);
+    });
+}
+
+function addHumanInputPrompt(question) {
+  const container = document.getElementById('messages');
+  const card = document.createElement('div');
+  card.className = 'hitl-card';
+  card.innerHTML = `
+    <div class="hitl-header">🙋 Agent needs your input</div>
+    <div class="hitl-question">${escapeHtml(question)}</div>
+    <div class="hitl-input-row">
+      <input class="hitl-input" type="text" placeholder="Type your answer..." autofocus />
+      <button class="hitl-submit">Send</button>
+    </div>
+  `;
+  container.appendChild(card);
+  container.scrollTop = container.scrollHeight;
+  const input = card.querySelector('.hitl-input');
+  const btn = card.querySelector('.hitl-submit');
+  input.focus();
+  const submit = () => {
+    const answer = input.value.trim();
+    if (!answer) return;
+    btn.disabled = true;
+    input.disabled = true;
+    // Mark this card answered and freeze it visually.
+    card.classList.add('answered');
+    card.querySelector('.hitl-header').innerHTML = '✓ Your answer';
+    card.querySelector('.hitl-question').textContent = answer;
+    card.querySelector('.hitl-input-row').remove();
+    // Resume the graph.
+    const selectedModel = document.getElementById('modelSelect').value;
+    const body = JSON.stringify({ conversation_id: conversationId || '', answer, model: selectedModel });
+    setStreaming(true);
+    const typingEl = addTypingIndicator();
+    streamFrom('/api/resume', body, typingEl);
+  };
+  btn.onclick = submit;
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
+  });
+}
+
+function sendSuggestion(el) {
+  const clone = el.cloneNode(true);
+  const icon = clone.querySelector('.s-icon');
+  if (icon) icon.remove();
+  const text = clone.textContent.trim();
+  document.getElementById('userInput').value = text;
+  sendMessage();
+}
+
+function setStreaming(val) {
+  isStreaming = val;
+  document.getElementById('sendBtn').disabled = val;
+  document.getElementById('stateToggle').classList.toggle('live', val);
+}
+
+// --- State Inspector ---
+function toggleStatePanel() {
+  document.getElementById('statePanel').classList.toggle('open');
+}
+
+function toggleLive() {
+  stateLive = !stateLive;
+  document.getElementById('tlLiveBtn').classList.toggle('on', stateLive);
+  if (stateLive && stateHistory.length > 0) {
+    stateViewIdx = stateHistory.length - 1;
+    renderSnapshot(stateHistory[stateViewIdx]);
+    renderTimeline();
+  }
+}
+
+function resetStateHistory() {
+  stateHistory = [];
+  stateLive = true;
+  stateViewIdx = -1;
+  document.getElementById('tlLiveBtn').classList.add('on');
+  document.getElementById('timeline').innerHTML = '<div class="state-empty" style="padding:8px">Run a query to see snapshots.</div>';
+  document.getElementById('tlLabel').textContent = 'Snapshot 0 / 0';
+  // Reset graph node highlights.
+  document.querySelectorAll('.workflow-graph .wg-node').forEach(g => {
+    g.classList.remove('visited', 'active');
+  });
+  document.querySelectorAll('.workflow-graph .wg-edge').forEach(e => {
+    e.classList.remove('active');
+  });
+}
+
+function recordState(s) {
+  stateHistory.push(s);
+  if (stateLive) {
+    stateViewIdx = stateHistory.length - 1;
+    renderSnapshot(s);
+  }
+  renderTimeline();
+}
+
+function renderTimeline() {
+  const tl = document.getElementById('timeline');
+  if (stateHistory.length === 0) return;
+  tl.innerHTML = stateHistory.map((s, i) => {
+    const node = s.node || '?';
+    const ts = (s.ts != null) ? `${s.ts}s` : '';
+    const cls = `tl-chip${i === stateViewIdx ? ' active' : ''}${i === stateHistory.length - 1 && isStreaming ? ' live' : ''}`;
+    return `<div class="${cls}" onclick="viewSnapshot(${i})">
+      <span class="tl-node ${escapeHtml(node)}">${escapeHtml(node)}</span>
+      <span class="tl-ts">${ts}</span>
+    </div>`;
+  }).join('');
+  document.getElementById('tlLabel').textContent =
+    `Snapshot ${stateViewIdx + 1} / ${stateHistory.length}` +
+    (stateLive ? ' (live)' : ' (pinned)');
+  // Scroll the active chip into view
+  const activeChip = tl.querySelector('.tl-chip.active');
+  if (activeChip) activeChip.scrollIntoView({behavior: 'smooth', inline: 'nearest', block: 'nearest'});
+}
+
+function viewSnapshot(idx) {
+  if (idx < 0 || idx >= stateHistory.length) return;
+  stateViewIdx = idx;
+  stateLive = false;
+  document.getElementById('tlLiveBtn').classList.remove('on');
+  renderSnapshot(stateHistory[idx]);
+  renderTimeline();
+}
+
+// Adapter: state events go here; only renders if we're in live mode.
+function renderState(s) {
+  recordState(s);
+}
+
+function renderWorkflowGraph(snap) {
+  // Determine which nodes have been visited (and which is "active" now).
+  // Use the full state history up to the current view so the graph reflects
+  // the run's path through the topology.
+  const upto = Math.max(0, stateViewIdx + 1);
+  const slice = stateHistory.slice(0, upto);
+  const visited = new Set();
+  for (const s of slice) {
+    if (s && s.node) visited.add(s.node);
+  }
+  // The router fast-paths if there's a response but no plan was created.
+  // If the user message ended at the router, only highlight router.
+  const lastNode = snap && snap.node ? snap.node : null;
+
+  // Infer extra visited nodes from state contents in case node tag is missing.
+  if (snap) {
+    if ((snap.plan || []).length > 0) visited.add('planner');
+    if ((snap.past_steps || []).length > 0) visited.add('executor');
+    if ((snap.verification_result || '').trim()) visited.add('verifier');
+    if (snap.response && visited.size === 0) visited.add('router');
+  }
+
+  document.querySelectorAll('.workflow-graph .wg-node').forEach(g => {
+    const name = g.dataset.node;
+    g.classList.toggle('visited', visited.has(name));
+    g.classList.toggle('active', isStreaming && name === lastNode);
+  });
+
+  // Highlight edges along the visited path.
+  const activeEdges = new Set();
+  if (visited.has('planner')) activeEdges.add('router-planner');
+  if (!visited.has('planner') && snap && snap.response) activeEdges.add('router-end');
+  if (visited.has('executor')) activeEdges.add('planner-executor');
+  if (visited.has('executor') && (snap.past_steps || []).length > 1) activeEdges.add('executor-self');
+  if (visited.has('verifier')) activeEdges.add('executor-verifier');
+  if ((snap.revision_count || 0) > 0) activeEdges.add('verifier-planner');
+
+  document.querySelectorAll('.workflow-graph .wg-edge').forEach(e => {
+    e.classList.toggle('active', activeEdges.has(e.dataset.edge));
+  });
+}
+
+function renderSnapshot(s) {
+  renderWorkflowGraph(s);
+  // Plan
+  const plan = s.plan || [];
+  const current = s.current_step || 0;
+  document.getElementById('planCount').textContent = plan.length;
+  const planList = document.getElementById('planList');
+  if (plan.length === 0) {
+    planList.innerHTML = '<div class="state-empty">No plan yet.</div>';
+  } else {
+    planList.innerHTML = plan.map((step, i) => {
+      let cls = 'plan-step';
+      if (i < current) cls += ' done';
+      else if (i === current) cls += ' current';
+      return `<li class="${cls}"><span class="idx">${i + 1}</span><span>${escapeHtml(step)}</span></li>`;
+    }).join('');
+  }
+
+  // Past steps
+  const past = s.past_steps || [];
+  document.getElementById('pastCount').textContent = past.length;
+  const pastBox = document.getElementById('pastSteps');
+  if (past.length === 0) {
+    pastBox.innerHTML = '<div class="state-empty">Nothing executed yet.</div>';
+  } else {
+    pastBox.innerHTML = past.map(p => `
+      <div class="past-step">
+        <div class="ps-step">${escapeHtml(p.step || '')}</div>
+        <div class="ps-result">${escapeHtml(p.result || '')}</div>
+      </div>`).join('');
+  }
+
+  // Verification
+  const v = (s.verification_result || '').trim();
+  const vBox = document.getElementById('verifBox');
+  if (!v) {
+    vBox.innerHTML = '<span class="verif-pill pending"><span class="state-dot"></span> pending</span>';
+  } else if (v.toUpperCase().startsWith('APPROVED')) {
+    vBox.innerHTML = '<span class="verif-pill approved">✓ approved</span>';
+  } else {
+    const detail = v.replace(/^REVISE:?\s*/i, '');
+    vBox.innerHTML = `<span class="verif-pill revise">⚠ revise</span><div class="verif-detail">${escapeHtml(detail)}</div>`;
+  }
+
+  // Revisions
+  document.getElementById('revisionCount').textContent = s.revision_count || 0;
+
+  // Token usage
+  const tokens = s.token_usage || {};
+  const tgrid = document.getElementById('tokensGrid');
+  const entries = Object.entries(tokens);
+  if (entries.length === 0) {
+    tgrid.innerHTML = '<div class="state-empty">No tokens tracked yet.</div>';
+  } else {
+    let total = 0;
+    let html = '';
+    for (const [agent, val] of entries) {
+      const n = typeof val === 'number' ? val : (val && val.total_tokens) || 0;
+      total += n;
+      html += `<div class="tk-agent">${escapeHtml(agent)}</div><div class="tk-val">${n.toLocaleString()}</div>`;
+    }
+    html += `<div class="tk-agent" style="border-top:1px solid var(--border);padding-top:4px;font-weight:600">total</div><div class="tk-val" style="border-top:1px solid var(--border);padding-top:4px;font-weight:600">${total.toLocaleString()}</div>`;
+    tgrid.innerHTML = html;
+  }
+}
+
+// --- UI helpers ---
+function addMessage(role, content) {
+  const container = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = `message ${role}`;
+  const avatar = role === 'user' ? '👤' : '🤖';
+  div.innerHTML = `<div class="avatar">${avatar}</div><div class="bubble">${formatContent(content)}</div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function addAssistantMessage(content, steps, elapsed, diagnostics, turnId) {
+  const container = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'message assistant';
+  if (turnId) div.dataset.turnId = turnId;
+
+  let stepsHtml = '';
+  if (steps.length > 0) {
+    stepsHtml = '<div class="agent-steps">';
+    for (const s of steps) {
+      if (s.agent === 'synthesizer') continue;
+      const shortContent = s.content.length > 120 ? s.content.slice(0, 120) + '...' : s.content;
+      stepsHtml += `<div class="agent-step" onclick="this.classList.toggle('expanded')">
+        <div class="step-header"><span class="chevron">▶</span><span class="step-agent ${s.agent}">${s.agent}</span> ${escapeHtml(shortContent)}</div>
+        <div class="step-body">${formatContent(s.content)}</div>
+      </div>`;
+    }
+    stepsHtml += '</div>';
+  }
+
+  // Workflow button — opens the state drawer scoped to this turn.
+  let workflowBtn = '';
+  if (turnId && messageWorkflows.has(turnId)) {
+    const snapCount = messageWorkflows.get(turnId).length;
+    workflowBtn = `<button class="workflow-btn" onclick="viewMessageWorkflow('${turnId}')">🔬 View workflow (${snapCount})</button>`;
+  }
+
+  let statsHtml = '';
+  if (elapsed) {
+    statsHtml = `<div class="stats-bar"><span class="stat">⏱️ ${elapsed}s</span><span class="stat">📊 ${steps.length} steps</span>${workflowBtn ? '<span style="flex:1"></span>' + workflowBtn : ''}</div>`;
+  } else if (workflowBtn) {
+    statsHtml = `<div class="stats-bar"><span style="flex:1"></span>${workflowBtn}</div>`;
+  }
+
+  div.innerHTML = `<div class="avatar">🤖</div><div class="bubble">${formatContent(content)}${stepsHtml}${statsHtml}</div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function viewMessageWorkflow(turnId) {
+  const snaps = messageWorkflows.get(turnId);
+  if (!snaps || snaps.length === 0) return;
+  stateHistory = snaps.slice();
+  stateLive = false;
+  stateViewIdx = stateHistory.length - 1;
+  document.getElementById('tlLiveBtn').classList.remove('on');
+  document.getElementById('statePanel').classList.add('open');
+  renderSnapshot(stateHistory[stateViewIdx]);
+  renderTimeline();
+  // Mark the active message visually.
+  document.querySelectorAll('.message.assistant.workflow-active').forEach(el => el.classList.remove('workflow-active'));
+  const target = document.querySelector(`.message.assistant[data-turn-id="${turnId}"]`);
+  if (target) target.classList.add('workflow-active');
+}
+
+const AGENT_ICONS = {
+  planner: '🧠', executor: '⚡', verifier: '🔍',
+  replanner: '🔄', tools: '🛠️', start: '▶', assistant: '🤖',
+};
+
+function addTypingIndicator() {
+  // Now a "trace bubble" — a vertical stack of agent cards that fill in
+  // as the workflow runs. Kept the function name for compatibility with
+  // the existing call sites.
+  const container = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'message assistant';
+  div.id = 'typingIndicator';
+  div.dataset.startTime = String(Date.now());
+  div.innerHTML = `<div class="avatar">🤖</div><div class="bubble">
+    <div class="thinking-banner-wrap">
+      <div class="thinking-banner">
+        <span class="spinner"></span>
+        <span class="label">Agent is thinking…</span>
+        <span class="elapsed">0.0s</span>
+      </div>
+      <div class="bar"></div>
+    </div>
+    <div class="agent-trace"></div>
+  </div>`;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  _startThinkingTicker();
+  return div;
+}
+
+function _trace(el) { return el && el.querySelector('.agent-trace'); }
+
+function _runningCardFor(el, agent) {
+  const t = _trace(el);
+  return t ? t.querySelector(`.trace-card.running[data-agent="${agent}"]`) : null;
+}
+
+let _traceTickHandle = null;
+let _thinkingTickHandle = null;
+
+function _startTraceTicker() {
+  if (_traceTickHandle) return;
+  _traceTickHandle = setInterval(() => {
+    document.querySelectorAll('.trace-card.running').forEach(card => {
+      const start = Number(card.dataset.startTime || 0);
+      if (!start) return;
+      const secs = ((Date.now() - start) / 1000).toFixed(1);
+      const status = card.querySelector('.trace-status');
+      if (status) status.textContent = `running… ${secs}s`;
+    });
+    if (!document.querySelector('.trace-card.running')) {
+      clearInterval(_traceTickHandle);
+      _traceTickHandle = null;
+    }
+  }, 200);
+}
+
+function _startThinkingTicker() {
+  if (_thinkingTickHandle) return;
+  _thinkingTickHandle = setInterval(() => {
+    const ind = document.getElementById('typingIndicator');
+    if (!ind) {
+      clearInterval(_thinkingTickHandle);
+      _thinkingTickHandle = null;
+      return;
+    }
+    const start = Number(ind.dataset.startTime || 0);
+    if (!start) return;
+    const el = ind.querySelector('.thinking-banner .elapsed');
+    if (el) el.textContent = `${((Date.now() - start) / 1000).toFixed(1)}s`;
+  }, 200);
+}
+
+function _createCard(el, agent) {
+  const t = _trace(el);
+  if (!t) return null;
+  const card = document.createElement('div');
+  card.className = 'trace-card running';
+  card.dataset.agent = agent;
+  card.dataset.startTime = String(Date.now());
+  card.innerHTML = `
+    <div class="trace-header">
+      <span class="status-dot"></span>
+      <span class="agent-name ${agent}">${AGENT_ICONS[agent] || ''} ${agent}</span>
+      <span class="trace-status">running… 0.0s</span>
+    </div>
+    <div class="trace-body"></div>
+    <div class="trace-progress"></div>
+  `;
+  t.appendChild(card);
+  document.getElementById('messages').scrollTop = document.getElementById('messages').scrollHeight;
+  _startTraceTicker();
+  return card;
+}
+
+function updateTypingAgent(el, agent) {
+  // No-op now — each agent gets its own card via tokens/agent_step.
+}
+
+function appendLiveToken(el, agent, text) {
+  let card = _runningCardFor(el, agent) || _createCard(el, agent);
+  if (!card) return;
+  const body = card.querySelector('.trace-body');
+  body.textContent += text;
+  body.scrollTop = body.scrollHeight;
+}
+
+function clearLiveStream(el, agent, finalContent) {
+  // Finalize the in-progress card for `agent`. If no card exists (no
+  // tokens streamed — e.g. a deterministic step), create one and fill it.
+  let card = _runningCardFor(el, agent) || _createCard(el, agent);
+  if (!card) return;
+  card.classList.remove('running');
+  card.classList.add('done', agent);
+  // Prefer the elapsed time from the audit content like "(4.5s)";
+  // fall back to wall-clock from the card's start_time.
+  let dur = '';
+  const match = (finalContent || '').match(/\(([0-9.]+)s\)/);
+  if (match) dur = `${match[1]}s`;
+  else if (card.dataset.startTime) {
+    dur = `${((Date.now() - Number(card.dataset.startTime)) / 1000).toFixed(1)}s`;
+  }
+  card.querySelector('.trace-status').textContent = dur ? `✓ ${dur}` : '✓';
+  if (finalContent) {
+    // Re-render with formatContent so URLs in the step become clickable.
+    card.querySelector('.trace-body').innerHTML = formatContent(finalContent);
+  }
+}
+
+function formatContent(text) {
+  if (!text) return '';
+  // Work line-by-line so we can group tables/lists/code-blocks as blocks.
+  const lines = text.split(/\r?\n/);
+  const out = [];
+  let i = 0;
+  const isTableSep = (s) => /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/.test(s);
+  const isTableRow = (s) => /^\s*\|.*\|\s*$/.test(s);
+  const splitCells = (s) => s.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(c => c.trim());
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // --- Fenced code block ```lang ... ```
+    if (/^\s*```/.test(line)) {
+      const lang = line.replace(/^\s*```/, '').trim();
+      const buf = [];
+      i++;
+      while (i < lines.length && !/^\s*```/.test(lines[i])) { buf.push(lines[i]); i++; }
+      if (i < lines.length) i++; // skip closing fence
+      out.push(`<pre><code${lang ? ` class="lang-${escapeHtml(lang)}"` : ''}>${escapeHtml(buf.join('\n'))}</code></pre>`);
+      continue;
+    }
+
+    // --- Markdown table: header row, separator row, then body rows
+    if (isTableRow(line) && i + 1 < lines.length && isTableSep(lines[i + 1])) {
+      const headers = splitCells(line);
+      i += 2; // skip header + separator
+      const rows = [];
+      while (i < lines.length && isTableRow(lines[i])) {
+        rows.push(splitCells(lines[i]));
+        i++;
+      }
+      const thead = '<thead><tr>' + headers.map(h => `<th>${inlineMd(h)}</th>`).join('') + '</tr></thead>';
+      const tbody = '<tbody>' + rows.map(r =>
+        '<tr>' + r.map(c => `<td>${inlineMd(c)}</td>`).join('') + '</tr>'
+      ).join('') + '</tbody>';
+      out.push(`<table>${thead}${tbody}</table>`);
+      continue;
+    }
+
+    // --- Unordered list (-, *, +)
+    if (/^\s*[-*+]\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s*[-*+]\s+/.test(lines[i])) {
+        items.push(lines[i].replace(/^\s*[-*+]\s+/, ''));
+        i++;
+      }
+      out.push('<ul>' + items.map(it => `<li>${inlineMd(it)}</li>`).join('') + '</ul>');
+      continue;
+    }
+
+    // --- Ordered list (1. 2. ...)
+    if (/^\s*\d+[.)]\s+/.test(line)) {
+      const items = [];
+      while (i < lines.length && /^\s*\d+[.)]\s+/.test(lines[i])) {
+        items.push(lines[i].replace(/^\s*\d+[.)]\s+/, ''));
+        i++;
+      }
+      out.push('<ol>' + items.map(it => `<li>${inlineMd(it)}</li>`).join('') + '</ol>');
+      continue;
+    }
+
+    // --- Headers
+    const hMatch = line.match(/^\s*(#{1,3})\s+(.+?)\s*$/);
+    if (hMatch) {
+      const lvl = hMatch[1].length;
+      out.push(`<h${lvl}>${inlineMd(hMatch[2])}</h${lvl}>`);
+      i++;
+      continue;
+    }
+
+    // --- Horizontal rule
+    if (/^\s*-{3,}\s*$/.test(line) || /^\s*\*{3,}\s*$/.test(line)) {
+      out.push('<hr>');
+      i++;
+      continue;
+    }
+
+    // --- Blockquote
+    if (/^\s*>\s+/.test(line)) {
+      const buf = [];
+      while (i < lines.length && /^\s*>\s+/.test(lines[i])) {
+        buf.push(lines[i].replace(/^\s*>\s+/, ''));
+        i++;
+      }
+      out.push(`<blockquote>${inlineMd(buf.join(' '))}</blockquote>`);
+      continue;
+    }
+
+    // --- Blank line collapses to a small spacer
+    if (/^\s*$/.test(line)) {
+      out.push('<div style="height:6px"></div>');
+      i++;
+      continue;
+    }
+
+    // --- Plain paragraph line
+    out.push(`<div>${inlineMd(line)}</div>`);
+    i++;
+  }
+  return out.join('');
+}
+
+// Inline markdown — bold, italic, inline code, links, autolinks.
+function inlineMd(text) {
+  if (text == null) return '';
+  let s = escapeHtml(text);
+  // Inline code first so its contents aren't touched by other rules.
+  s = s.replace(/`([^`]+)`/g, (_, c) => `<code>${c}</code>`);
+  // Bold (**) and italic (* or _)
+  s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/(?<!\*)\*(?!\s)([^*\n]+?)(?<!\s)\*(?!\*)/g, '<em>$1</em>');
+  // Markdown links [label](url)
+  s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  // Bare URL autolink (skip ones we just wrapped in an <a>)
+  s = s.replace(/(^|[^"=])(https?:\/\/[^\s<]+?)([.,;:!?)\]]*)(?=\s|<|$)/g,
+    (_, lead, url, trail) => `${lead}<a href="${url}" target="_blank" rel="noopener">${url}</a>${trail}`);
+  return s;
+}
+
+function escapeHtml(t) {
+  const d = document.createElement('div');
+  d.textContent = t;
+  return d.innerHTML;
+}
+
+// --- Conversations ---
+function loadConversations() {
+  fetch('/api/conversations').then(r => r.json()).then(convos => {
+    const list = document.getElementById('convList');
+    list.innerHTML = '';
+    for (const c of convos) {
+      const div = document.createElement('div');
+      div.className = 'conv-item' + (c.id === conversationId ? ' active' : '');
+      div.innerHTML = `${escapeHtml(c.title)}<span class="conv-date">${c.message_count} messages</span>`;
+      div.onclick = () => loadConversation(c.id);
+      list.appendChild(div);
+    }
+  }).catch(() => {});
+}
+
+function loadConversation(id) {
+  fetch(`/api/conversations/${id}`).then(r => r.json()).then(data => {
+    conversationId = data.id;
+    document.getElementById('chatTitle').textContent = data.title;
+    const container = document.getElementById('messages');
+    container.innerHTML = '';
+    // Wipe in-memory workflow registry for this load so old turn-ids
+    // don't collide with the synthesized "loaded-…" ones we're about to add.
+    messageWorkflows.clear();
+    resetStateHistory();
+    data.messages.forEach((msg, idx) => {
+      if (msg.role === 'assistant' && Array.isArray(msg.workflow) && msg.workflow.length > 0) {
+        // Re-register the workflow so the 🔬 button works for this past turn.
+        const turnId = `loaded-${data.id}-${idx}`;
+        messageWorkflows.set(turnId, msg.workflow);
+        const lastSnap = msg.workflow[msg.workflow.length - 1];
+        const elapsed = lastSnap && lastSnap.ts != null ? lastSnap.ts : null;
+        addAssistantMessage(msg.content, [], elapsed, [], turnId);
+      } else {
+        addMessage(msg.role, msg.content);
+      }
+    });
+    loadConversations();
+  });
+}
+
+function newChat() {
+  conversationId = null;
+  document.getElementById('chatTitle').textContent = 'New Conversation';
+  const container = document.getElementById('messages');
+  container.innerHTML = `<div class="welcome" id="welcome"><h1>Plexus</h1><p>Ask me anything — math, research, code, or general questions.</p><div class="suggestions"><div class="suggestion" onclick="sendSuggestion(this)"><span class="s-icon">🔢</span>What is 15% of 847?</div><div class="suggestion" onclick="sendSuggestion(this)"><span class="s-icon">🌡️</span>Current temperature in Jaipur?</div></div></div>`;
+  loadConversations();
+  document.getElementById('userInput').focus();
+}
+
+// --- Memory ---
+function loadMemoryCount() {
+  fetch('/api/memory').then(r => r.json()).then(data => {
+    document.getElementById('memCount').textContent = (data.facts || []).length;
+  }).catch(() => {});
+}
+
+function showMemory() {
+  fetch('/api/memory').then(r => r.json()).then(data => {
+    const facts = data.facts || [];
+    const container = document.getElementById('memoryFacts');
+    container.innerHTML = facts.length === 0
+      ? '<p style="color:var(--text-muted);font-size:13px">No memories stored yet.</p>'
+      : facts.map(f => `<div class="fact">${escapeHtml(f)}</div>`).join('');
+    document.getElementById('memoryModal').classList.add('active');
+  });
+}
+
+function closeMemory() { document.getElementById('memoryModal').classList.remove('active'); }
+
+function clearMemory() {
+  if (confirm('Clear all long-term memory?')) {
+    fetch('/api/memory', { method: 'DELETE' }).then(() => { loadMemoryCount(); alert('Memory cleared.'); });
+  }
+}
+</script>
+</body>
+</html>
