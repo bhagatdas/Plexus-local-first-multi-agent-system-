@@ -12,6 +12,12 @@ Router → Plan → Execute → Verify, with reflection loops and human-in-the-l
 [![Flask](https://img.shields.io/badge/Flask-SSE-orange.svg)](https://flask.palletsprojects.com/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](#license)
 
+<br/>
+
+<img src="docs/ui-state.png" alt="Plexus UI — LangGraph State drawer with live workflow graph" width="900"/>
+
+<sub><em>The LangGraph State drawer: live workflow graph, per-snapshot plan / past steps / verifier status / token usage.</em></sub>
+
 </div>
 
 ---
